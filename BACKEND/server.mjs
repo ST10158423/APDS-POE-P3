@@ -50,7 +50,7 @@ app.use('/employee', employeeRoutes); // Register the employee routes with the p
 // Connect to the database and start the HTTPS server
 connectToDatabase().then(() => {
   const httpsServer = https.createServer(credentials, app);
-  httpsServer.listen(PORT, () => {
+  httpsServer.listen(PORT, '0.0.0.0', () => { // Bind to '0.0.0.0' to allow external access
     console.log(`HTTPS Server is running on https://localhost:${PORT}`);
   });
 }).catch(err => {
