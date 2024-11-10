@@ -13,8 +13,17 @@ jobs:
           command: "npm install"  # Install dependencies
       - run:
           name: "Start Backend Server"
-          command: "npm start &"  # Start backend server in background
+          command: "npm start &"  # Start backend server in the background
           background: true
+      - run:
+          name: "Wait for Backend Server"
+          command: |
+            echo "Waiting for backend to be ready..."
+            for i in $(seq 1 10); do
+              curl --fail http://localhost:3001/users/login && break
+              echo "Waiting for backend (attempt $i)..."
+              sleep 5
+            done || (echo "Backend server failed to start." && exit 1)
       - run:
           name: "Run Basic Backend Tests"
           command: |
@@ -36,14 +45,17 @@ jobs:
           command: "npm install"  # Install dependencies
       - run:
           name: "Start Frontend Server"
-          command: "npm start &"  # Start frontend server in background
+          command: "npm start &"  # Start frontend server in the background
           background: true
       - run:
-          name: "Check Frontend Status"
+          name: "Wait for Frontend Server"
           command: |
-            echo "Checking frontend status..."
-            curl --fail http://localhost:3000 || (echo "Frontend failed to start!" && exit 1)
-            echo "Frontend is running successfully."
+            echo "Waiting for frontend to be ready..."
+            for i in $(seq 1 10); do
+              curl --fail http://localhost:3000 && break
+              echo "Waiting for frontend (attempt $i)..."
+              sleep 5
+            done || (echo "Frontend server failed to start." && exit 1)
 
   # SonarQube analysis
   sonarqube:
