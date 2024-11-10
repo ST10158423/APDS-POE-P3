@@ -13,7 +13,7 @@ jobs:
           command: "npm install"  # Install dependencies
       - run:
           name: "Start Backend Server"
-          command: "npm run start &"  # Start backend server
+          command: "npm start &"  # Start backend server
           background: true
       - run:
           name: "Run Basic Backend Tests"
@@ -36,7 +36,7 @@ jobs:
           command: "npm install"  # Install dependencies
       - run:
           name: "Run Frontend Build"
-          command: "npm run build"  # Build the frontend
+          command: "npm start"  # Build the frontend
 
   # SonarQube analysis
   sonarqube:
