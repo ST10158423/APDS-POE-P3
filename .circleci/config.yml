@@ -1,84 +1,103 @@
 version: 2.1
 
 jobs:
-  # Job to check out the code and install dependencies for both backend and frontend
   install-dependencies:
     docker:
-      - image: cimg/node:16.13.0  # Node image for frontend and backend
+      - image: circleci/node:16
     steps:
       - checkout
       - run:
-          name: Install Backend Dependencies
-          working_directory: ~/BACKEND
-          command: npm install
+          name: "Install Backend Dependencies"
+          working_directory: ~/backend
+          command: |
+            if [ -f package.json ]; then
+              npm install
+            else
+              echo "Backend package.json not found!"
+              exit 1
+            fi
       - run:
-          name: Install Frontend Dependencies
+          name: "Install Frontend Dependencies"
           working_directory: ~/frontend
-          command: npm install
+          command: |
+            if [ -f package.json ]; then
+              npm install
+            else
+              echo "Frontend package.json not found!"
+              exit 1
+            fi
 
-  # Job to run backend tests
   backend-tests:
     docker:
-      - image: cimg/node:16.13.0
+      - image: circleci/node:16
     steps:
       - checkout
       - run:
-          name: Run Backend Tests
-          working_directory: ~/BACKEND
-          command: npm test
+          name: "Run Backend Tests"
+          working_directory: ~/backend
+          command: |
+            if [ -f package.json ]; then
+              npm test
+            else
+              echo "Backend package.json not found!"
+              exit 1
+            fi
 
-  # Job to run frontend tests
   frontend-tests:
     docker:
-      - image: cimg/node:16.13.0
+      - image: circleci/node:16
     steps:
       - checkout
       - run:
-          name: Run Frontend Tests
+          name: "Run Frontend Tests"
           working_directory: ~/frontend
-          command: npm test
+          command: |
+            if [ -f package.json ]; then
+              npm test
+            else
+              echo "Frontend package.json not found!"
+              exit 1
+            fi
 
-  # Job to perform linting
   lint:
     docker:
-      - image: cimg/node:16.13.0
+      - image: circleci/node:16
     steps:
       - checkout
       - run:
-          name: Lint Backend
-          working_directory: ~/BACKEND
-          command: npm run lint
+          name: "Lint Backend Code"
+          working_directory: ~/backend
+          command: |
+            if [ -f package.json ]; then
+              npm run lint
+            fi
       - run:
-          name: Lint Frontend
+          name: "Lint Frontend Code"
           working_directory: ~/frontend
-          command: npm run lint
+          command: |
+            if [ -f package.json ]; then
+              npm run lint
+            fi
 
-  # Job for SonarQube analysis
   sonarqube:
-    working_directory: ~/build
     docker:
       - image: sonarsource/sonar-scanner-cli
-    resource_class: small
     steps:
       - checkout
       - run: find .
-      - run:
-          name: Run SonarQube Analysis
-          command: |
-            SONAR_BRANCH="${CIRCLE_BRANCH:-master}"
-            echo "Sonar branch value is: " $SONAR_BRANCH
-            sonar-scanner \
-              -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
-              -Dsonar.organization="$SONAR_ORG" \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.exclusions="**/android/**,**/ios/**" \
-              -Dsonar.login="$SONAR_TOKEN" \
-              -Dsonar.branch.name="$SONAR_BRANCH" \
-              -Dsonar.sources="."
+      - run: |
+          SONAR_BRANCH="${CIRCLE_BRANCH:-master}"
+          sonar-scanner \
+          -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+          -Dsonar.organization="$SONAR_ORG" \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.exclusions="**/android/**,**/ios/**" \
+          -Dsonar.login="$SONAR_TOKEN" \
+          -Dsonar.branch.name="$SONAR_BRANCH" \
+          -Dsonar.sources="."
 
 workflows:
-  version: 2
-  test-and-analyze:
+  build-test-analyze:
     jobs:
       - install-dependencies
       - backend-tests:
@@ -89,9 +108,8 @@ workflows:
             - install-dependencies
       - lint:
           requires:
-            - install-dependencies
-      - sonarqube:
-          requires:
             - backend-tests
             - frontend-tests
+      - sonarqube:
+          requires:
             - lint
