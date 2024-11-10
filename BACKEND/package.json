@@ -1,0 +1,23 @@
+{
+    "name": "apds",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "BACKEND/server.mjs",
+    "scripts": {
+  "start": "nodemon server.mjs"
+    },
+    "dependencies": {
+      "express": "^4.21.0",
+      "cors": "^2.8.5",
+      "dotenv": "^16.4.5",
+      "cookie-parser": "^1.4.6",
+      "csurf": "^1.11.0",
+      "helmet": "^8.0.0",
+      "mongodb": "^6.9.0",
+      "mongoose": "^8.7.0"
+    },
+    "devDependencies": {
+      "nodemon": "^3.1.7"
+    }
+  }
+  
