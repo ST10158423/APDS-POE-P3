@@ -1,54 +1,72 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/configuration-reference
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/jobs-steps/#jobs-overview & https://circleci.com/docs/configuration-reference/#jobs
 jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/executor-intro/ & https://circleci.com/docs/configuration-reference/#executor-job
+  # Job for backend testing and setup
+  backend-setup:
     docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
-
-    # Add steps to the job
-    # See: https://circleci.com/docs/jobs-steps/#steps-overview & https://circleci.com/docs/configuration-reference/#steps
+      - image: cimg/node:current
+    working_directory: ~/project/backend  # Set the working directory to backend
     steps:
-      # Checkout the code as the first step.
       - checkout
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: "Install Backend Dependencies"
+          command: "npm install"  # Install dependencies
+      - run:
+          name: "Start Backend Server"
+          command: "npm run start &"  # Start backend server
+          background: true
+      - run:
+          name: "Run Basic Backend Tests"
+          command: |
+            echo "Testing backend endpoints..."
+            curl --fail http://localhost:3001/users/login || (echo "Login endpoint failed!" && exit 1)
+            curl --fail http://localhost:3001/payments || (echo "Payments endpoint failed!" && exit 1)
+            curl --fail http://localhost:3001/employee/payments || (echo "Employee payments endpoint failed!" && exit 1)
+            echo "Backend tests completed successfully."
 
-sonarqube:
-    working_directory: ~/build
+  # Job for frontend testing and setup
+  frontend-setup:
+    docker:
+      - image: cimg/node:current
+    working_directory: ~/project/frontend  # Set the working directory to frontend
+    steps:
+      - checkout
+      - run:
+          name: "Install Frontend Dependencies"
+          command: "npm install"  # Install dependencies
+      - run:
+          name: "Run Frontend Build"
+          command: "npm run build"  # Build the frontend
+
+  # SonarQube analysis
+  sonarqube:
     docker:
       - image: sonarsource/sonar-scanner-cli
-    resource_class: small
+    working_directory: ~/project
     steps:
+      - checkout
       - run: find .
       - attach_workspace:
           at: ~/workspace
-      - run: | 
+      - run: |
+          echo "Starting SonarQube analysis..."
           SONAR_BRANCH="${CIRCLE_BRANCH:-master}"
           echo "Sonar branch value is: " $SONAR_BRANCH
-          echo "Sonar org value is : "$SONAR_ORG
           sonar-scanner \
           -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
           -Dsonar.organization="$SONAR_ORG" \
           -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.exclusions="**/android/**,**/ios/**" \
           -Dsonar.login="$SONAR_TOKEN" \
           -Dsonar.branch.name="$SONAR_BRANCH" \
           -Dsonar.sources="."
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  version: 2
+  build-test-deploy:
     jobs:
-      - say-hello
-      - sonarqube
+      - backend-setup
+      - frontend-setup
+      - sonarqube:
+          requires:
+            - backend-setup
+            - frontend-setup
