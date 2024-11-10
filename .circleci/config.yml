@@ -9,7 +9,7 @@ jobs:
       - checkout
       - run:
           name: Install Backend Dependencies
-          working_directory: ~/backend
+          working_directory: ~/BACKEND
           command: npm install
       - run:
           name: Install Frontend Dependencies
@@ -24,7 +24,7 @@ jobs:
       - checkout
       - run:
           name: Run Backend Tests
-          working_directory: ~/backend
+          working_directory: ~/BACKEND
           command: npm test
 
   # Job to run frontend tests
@@ -46,7 +46,7 @@ jobs:
       - checkout
       - run:
           name: Lint Backend
-          working_directory: ~/backend
+          working_directory: ~/BACKEND
           command: npm run lint
       - run:
           name: Lint Frontend
