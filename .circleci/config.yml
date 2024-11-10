@@ -13,7 +13,7 @@ jobs:
           command: "npm install"  # Install dependencies
       - run:
           name: "Start Backend Server"
-          command: "npm start &"  # Start backend server
+          command: "npm start &"  # Start backend server in background
           background: true
       - run:
           name: "Run Basic Backend Tests"
@@ -35,8 +35,15 @@ jobs:
           name: "Install Frontend Dependencies"
           command: "npm install"  # Install dependencies
       - run:
-          name: "Run Frontend Build"
-          command: "npm start"  # Build the frontend
+          name: "Start Frontend Server"
+          command: "npm start &"  # Start frontend server in background
+          background: true
+      - run:
+          name: "Check Frontend Status"
+          command: |
+            echo "Checking frontend status..."
+            curl --fail http://localhost:3000 || (echo "Frontend failed to start!" && exit 1)
+            echo "Frontend is running successfully."
 
   # SonarQube analysis
   sonarqube:
