@@ -9,6 +9,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: "Install jq"
+          command: "sudo apt-get update && sudo apt-get install -y jq"
+      - run:
           name: "Install Backend Dependencies"
           command: "npm install"  # Install dependencies
       - run:
@@ -19,21 +22,24 @@ jobs:
           name: "Wait for Backend Server"
           command: |
             echo "Waiting for backend to be ready..."
-            for i in $(seq 1 10); do
-              curl --fail http://localhost:3001/csrf-token && break
+            for i in $(seq 1 15); do
+              if curl --silent --fail http://localhost:3001/csrf-token; then
+                echo "Backend server is ready."
+                break
+              fi
               echo "Waiting for backend (attempt $i)..."
-              sleep 5
+              sleep 10
             done || (echo "Backend server failed to start." && exit 1)
       - run:
           name: "Get CSRF Token and Store"
           command: |
             echo "Fetching CSRF token..."
-            export CSRF_TOKEN=$(curl -s http://localhost:3001/csrf-token | jq -r '.csrfToken')
-            if [ -z "$CSRF_TOKEN" ]; then
+            export CSRF_TOKEN=$(curl -s -X GET http://localhost:3001/csrf-token | jq -r '.csrfToken')
+            if [ -z "$CSRF_TOKEN" ] || [ "$CSRF_TOKEN" == "null" ]; then
               echo "Failed to get CSRF token"
               exit 1
             fi
-            echo "CSRF token fetched successfully."
+            echo "CSRF token fetched successfully: $CSRF_TOKEN"
             echo 'export CSRF_TOKEN='$CSRF_TOKEN >> $BASH_ENV
       - run:
           name: "Get JWT Token and Store"
@@ -41,11 +47,11 @@ jobs:
             echo "Fetching JWT token..."
             export LOGIN_PAYLOAD='{ "username": "testuser", "accountNumber": "123456", "password": "password" }'
             export JWT_TOKEN=$(curl -s -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" -d "$LOGIN_PAYLOAD" | jq -r '.token')
-            if [ -z "$JWT_TOKEN" ]; then
+            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ]; then
               echo "Failed to get JWT token"
               exit 1
             fi
-            echo "JWT token fetched successfully."
+            echo "JWT token fetched successfully: $JWT_TOKEN"
             echo 'export JWT_TOKEN='$JWT_TOKEN >> $BASH_ENV
       - run:
           name: "Run Basic Backend Tests"
@@ -64,6 +70,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: "Install jq"
+          command: "sudo apt-get update && sudo apt-get install -y jq"
+      - run:
           name: "Install Frontend Dependencies"
           command: "npm install"  # Install dependencies
       - run:
@@ -74,10 +83,13 @@ jobs:
           name: "Wait for Frontend Server"
           command: |
             echo "Waiting for frontend to be ready..."
-            for i in $(seq 1 10); do
-              curl --fail http://localhost:3000 && break
+            for i in $(seq 1 15); do
+              if curl --silent --fail http://localhost:3000; then
+                echo "Frontend server is ready."
+                break
+              fi
               echo "Waiting for frontend (attempt $i)..."
-              sleep 5
+              sleep 10
             done || (echo "Frontend server failed to start." && exit 1)
 
   # SonarQube analysis
