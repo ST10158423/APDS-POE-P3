@@ -47,7 +47,7 @@ jobs:
             echo "Fetching JWT token..."
             export LOGIN_PAYLOAD='{ "username": "testuser", "accountNumber": "123456", "password": "password" }'
             export JWT_TOKEN=$(curl -s -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" -d "$LOGIN_PAYLOAD" | jq -r '.token')
-            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ]; then
+            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ];then
               echo "Failed to get JWT token"
               exit 1
             fi
