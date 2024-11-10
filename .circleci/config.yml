@@ -22,14 +22,19 @@ jobs:
           name: "Wait for Backend Server"
           command: |
             echo "Waiting for backend to be ready..."
-            for i in $(seq 1 15); do
+            for i in $(seq 1 20); do
               if curl --silent --fail http://localhost:3001/csrf-token; then
                 echo "Backend server is ready."
                 break
               fi
               echo "Waiting for backend (attempt $i)..."
-              sleep 10
+              sleep 15
             done || (echo "Backend server failed to start." && exit 1)
+      - run:
+          name: "Debug Backend Server"
+          command: |
+            echo "Checking backend status..."
+            curl -v http://localhost:3001/csrf-token
       - run:
           name: "Get CSRF Token and Store"
           command: |
@@ -47,7 +52,7 @@ jobs:
             echo "Fetching JWT token..."
             export LOGIN_PAYLOAD='{ "username": "testuser", "accountNumber": "123456", "password": "password" }'
             export JWT_TOKEN=$(curl -s -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" -d "$LOGIN_PAYLOAD" | jq -r '.token')
-            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ];then
+            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ]; then
               echo "Failed to get JWT token"
               exit 1
             fi
@@ -57,7 +62,7 @@ jobs:
           name: "Run Basic Backend Tests"
           command: |
             echo "Testing backend endpoints..."
-            curl --fail http://localhost:3001/users/login || (echo "Login endpoint failed!" && exit 1)
+            curl --fail -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -d "$LOGIN_PAYLOAD" || (echo "Login endpoint failed!" && exit 1)
             curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/payments || (echo "Payments endpoint failed!" && exit 1)
             curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/employee/payments || (echo "Employee payments endpoint failed!" && exit 1)
             echo "Backend tests completed successfully."
@@ -83,14 +88,19 @@ jobs:
           name: "Wait for Frontend Server"
           command: |
             echo "Waiting for frontend to be ready..."
-            for i in $(seq 1 15); do
+            for i in $(seq 1 20); do
               if curl --silent --fail http://localhost:3000; then
                 echo "Frontend server is ready."
                 break
               fi
               echo "Waiting for frontend (attempt $i)..."
-              sleep 10
+              sleep 15
             done || (echo "Frontend server failed to start." && exit 1)
+      - run:
+          name: "Debug Frontend Server"
+          command: |
+            echo "Checking frontend status..."
+            curl -v http://localhost:3000
 
   # SonarQube analysis
   sonarqube:
