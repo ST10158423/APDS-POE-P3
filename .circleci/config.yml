@@ -20,17 +20,40 @@ jobs:
           command: |
             echo "Waiting for backend to be ready..."
             for i in $(seq 1 10); do
-              curl --fail http://localhost:3001/users/login && break
+              curl --fail http://localhost:3001/csrf-token && break
               echo "Waiting for backend (attempt $i)..."
               sleep 5
             done || (echo "Backend server failed to start." && exit 1)
+      - run:
+          name: "Get CSRF Token and Store"
+          command: |
+            echo "Fetching CSRF token..."
+            export CSRF_TOKEN=$(curl -s http://localhost:3001/csrf-token | jq -r '.csrfToken')
+            if [ -z "$CSRF_TOKEN" ]; then
+              echo "Failed to get CSRF token"
+              exit 1
+            fi
+            echo "CSRF token fetched successfully."
+            echo 'export CSRF_TOKEN='$CSRF_TOKEN >> $BASH_ENV
+      - run:
+          name: "Get JWT Token and Store"
+          command: |
+            echo "Fetching JWT token..."
+            export LOGIN_PAYLOAD='{ "username": "testuser", "accountNumber": "123456", "password": "password" }'
+            export JWT_TOKEN=$(curl -s -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" -d "$LOGIN_PAYLOAD" | jq -r '.token')
+            if [ -z "$JWT_TOKEN" ]; then
+              echo "Failed to get JWT token"
+              exit 1
+            fi
+            echo "JWT token fetched successfully."
+            echo 'export JWT_TOKEN='$JWT_TOKEN >> $BASH_ENV
       - run:
           name: "Run Basic Backend Tests"
           command: |
             echo "Testing backend endpoints..."
             curl --fail http://localhost:3001/users/login || (echo "Login endpoint failed!" && exit 1)
-            curl --fail http://localhost:3001/payments || (echo "Payments endpoint failed!" && exit 1)
-            curl --fail http://localhost:3001/employee/payments || (echo "Employee payments endpoint failed!" && exit 1)
+            curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/payments || (echo "Payments endpoint failed!" && exit 1)
+            curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/employee/payments || (echo "Employee payments endpoint failed!" && exit 1)
             echo "Backend tests completed successfully."
 
   # Job for frontend testing and setup
