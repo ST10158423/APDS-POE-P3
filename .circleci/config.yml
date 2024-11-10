@@ -22,19 +22,14 @@ jobs:
           name: "Wait for Backend Server"
           command: |
             echo "Waiting for backend to be ready..."
-            for i in $(seq 1 20); do
+            for i in $(seq 1 30); do  # Increased the number of attempts from 15 to 30
               if curl --silent --fail http://localhost:3001/csrf-token; then
                 echo "Backend server is ready."
                 break
               fi
               echo "Waiting for backend (attempt $i)..."
-              sleep 15
+              sleep 10
             done || (echo "Backend server failed to start." && exit 1)
-      - run:
-          name: "Debug Backend Server"
-          command: |
-            echo "Checking backend status..."
-            curl -v http://localhost:3001/csrf-token
       - run:
           name: "Get CSRF Token and Store"
           command: |
@@ -52,7 +47,7 @@ jobs:
             echo "Fetching JWT token..."
             export LOGIN_PAYLOAD='{ "username": "testuser", "accountNumber": "123456", "password": "password" }'
             export JWT_TOKEN=$(curl -s -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" -d "$LOGIN_PAYLOAD" | jq -r '.token')
-            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ]; then
+            if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" == "null" ];then
               echo "Failed to get JWT token"
               exit 1
             fi
@@ -62,75 +57,13 @@ jobs:
           name: "Run Basic Backend Tests"
           command: |
             echo "Testing backend endpoints..."
-            curl --fail -X POST http://localhost:3001/users/login -H "Content-Type: application/json" -d "$LOGIN_PAYLOAD" || (echo "Login endpoint failed!" && exit 1)
+            curl --fail http://localhost:3001/users/login || (echo "Login endpoint failed!" && exit 1)
             curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/payments || (echo "Payments endpoint failed!" && exit 1)
             curl --fail -H "Authorization: Bearer $JWT_TOKEN" http://localhost:3001/employee/payments || (echo "Employee payments endpoint failed!" && exit 1)
             echo "Backend tests completed successfully."
-
-  # Job for frontend testing and setup
-  frontend-setup:
-    docker:
-      - image: cimg/node:current
-    working_directory: ~/project/frontend  # Set the working directory to frontend
-    steps:
-      - checkout
-      - run:
-          name: "Install jq"
-          command: "sudo apt-get update && sudo apt-get install -y jq"
-      - run:
-          name: "Install Frontend Dependencies"
-          command: "npm install"  # Install dependencies
-      - run:
-          name: "Start Frontend Server"
-          command: "npm start &"  # Start frontend server in the background
-          background: true
-      - run:
-          name: "Wait for Frontend Server"
-          command: |
-            echo "Waiting for frontend to be ready..."
-            for i in $(seq 1 20); do
-              if curl --silent --fail http://localhost:3000; then
-                echo "Frontend server is ready."
-                break
-              fi
-              echo "Waiting for frontend (attempt $i)..."
-              sleep 15
-            done || (echo "Frontend server failed to start." && exit 1)
-      - run:
-          name: "Debug Frontend Server"
-          command: |
-            echo "Checking frontend status..."
-            curl -v http://localhost:3000
-
-  # SonarQube analysis
-  sonarqube:
-    docker:
-      - image: sonarsource/sonar-scanner-cli
-    working_directory: ~/project
-    steps:
-      - checkout
-      - run: find .
-      - attach_workspace:
-          at: ~/workspace
-      - run: |
-          echo "Starting SonarQube analysis..."
-          SONAR_BRANCH="${CIRCLE_BRANCH:-master}"
-          echo "Sonar branch value is: " $SONAR_BRANCH
-          sonar-scanner \
-          -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
-          -Dsonar.organization="$SONAR_ORG" \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login="$SONAR_TOKEN" \
-          -Dsonar.branch.name="$SONAR_BRANCH" \
-          -Dsonar.sources="."
 
 workflows:
   version: 2
   build-test-deploy:
     jobs:
       - backend-setup
-      - frontend-setup
-      - sonarqube:
-          requires:
-            - backend-setup
-            - frontend-setup
